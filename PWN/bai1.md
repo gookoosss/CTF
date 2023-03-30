@@ -2,11 +2,11 @@
 
 Đầu tiên ta mở vào Terminal để truy cấp đến file bof1 bằng lệnh cd và ls;
 Sau đó ta vào ida64 để kiểm tra code c;
-(https://i.imgur.com/U5vNHxR.png)
+https://i.imgur.com/U5vNHxR.png
 
 Ý tưởng : 
 Bây giờ chúng ta hãy đọc từ trên xuống thì sẽ dễ dàng giải bài này!
-(https://i.imgur.com/20tlnYM.png)
+https://i.imgur.com/20tlnYM.png
 
 
 Cách giải:
