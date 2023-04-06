@@ -21,7 +21,7 @@ B2: ta dùng lệnh ni tìm <read@plt>
 ![image](https://user-images.githubusercontent.com/128712571/230344049-07e12424-a1fe-4c2e-8daf-f00969a68372.png)
 
 
-B3: ta pattern create 48 để tạo 48 bit roi copy nó
+B3: ta pattern create 48 để tạo 48 byte roi copy nó
 ![image](https://user-images.githubusercontent.com/128712571/230344113-aa8e3fcf-4cf0-4ce9-84fd-46fd2475d32e.png)
 
 
