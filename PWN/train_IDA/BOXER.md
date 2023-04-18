@@ -6,4 +6,4 @@
 
 bài đâu khá đơn giản nhỉ
 
-**flag: PS_The_bird_bites**
+**flag:flag - PS_The_bird_bites**
