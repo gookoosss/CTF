@@ -10,7 +10,7 @@
 ![image](https://github.com/gookoosss/CTF.-/assets/128712571/f3ea6c14-0d9b-465f-9594-f19b64cdad0c)
 
 
-*NX mở và file tĩnh nên ta có thực thi task*
+*NX đóng và file tĩnh nên ta có quyền thực thi stack*
 
 nhập thử 8byte xem sao:
 
