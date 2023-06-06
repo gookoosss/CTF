@@ -6,7 +6,7 @@
 - **%c** in ra 1 byte duy nhất(theo mã ascii) 
 - **%s** chuyển vào 1 địa chỉ, sau đó in ra dữ liệu đang trỏ đến
 - **%n** cộng thêm số byte được in ra trước đó
-- **%n$p** = %p%p%p%p.....%p có n lần
+- **%n$p** = trỏ đến %p thứ n
 - **%c%c%nc%n** =>%n gán 2 + n byte vào biến
 
 **ida:**
@@ -22,7 +22,7 @@
 ![image](https://github.com/gookoosss/CTF.-/assets/128712571/2d060755-b24e-4a6a-9d70-2c8cf33f7f78)
 
 
-**ta thấy địa chỉ stack là 6byte nên ta chắc chắn đây là địa chỉ động**
+**ta thấy địa chỉ exe là 6byte nên ta chắc chắn đây là địa chỉ động**
 
 tại hàm **read** đầu tiên thì nó đọc giá trị của flag gán vào trong stack
 
