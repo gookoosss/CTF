@@ -1,6 +1,10 @@
-script:
+# Buffer Overflow - Overwrite saved rbp để chuyển hướng luồng thực thi
 
-```
+Buffer Overflow làm thay đổi giá trị của các biến, các địa chỉ và quan trọng nhất là địa chỉ saved rip cũng như saved rbp. Trong video này, chúng ta sẽ tìm hiểu cách khai thác địa chỉ saved rbp khi ta không thể overwrite saved rip được.
+
+***script:***
+
+```python
 from pwn import *
 
 context.binary = exe = ELF('./bof8', checksec = False)
