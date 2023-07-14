@@ -1,4 +1,8 @@
-script:
+# Buffer Overflow - Overwrite saved rbp để thay đổi biến
+
+Buffer Overflow vẫn là một lỗi phổ biến và nếu ta chỉ có thể thay đổi giá trị saved rbp, ta hoàn toàn có thể thay đổi luồng thực thi của chương trình. Mỗi biến của chương trình được thể hiện thành giá trị trên stack. mình hướng dẫn các bạn thay đổi địa chỉ stack để thay đổi biến từ biến gốc ban đầu thành biến gốc do mình tự tạo. Kỹ thuật cho bài này có thể hơi khó, các bạn hãy giải lại để thấm hơn về kỹ thuật này nhé
+
+***script:***
 
 ```
 from pwn import *
