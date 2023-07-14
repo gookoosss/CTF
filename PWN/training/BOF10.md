@@ -1,4 +1,8 @@
-script:
+# Buffer Overflow - Off By One
+
+Khi ta có thể thay đổi giá trị của saved rbp, ta có thể thay đổi được luồng thực thi của chương trình và video hôm nay là một trường hợp đặc biệt thể hiện rõ nhất việc thay đổi luồng thực thi của chương trình. Khi ta có thể thay đổi một byte của địa chỉ saved rbp nhưng byte đó là một số cố định, chương trình lúc đó sẽ hoạt động sai đi và kết thúc với địa chỉ stack ngẫu nhiên giúp ta có thể khai thác chương trình.
+
+***script:***
 
 ```
 from pwn import *
