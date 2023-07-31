@@ -13,7 +13,7 @@ theo như những gì mình hiểu thì:
 
 
 - trong các hàm **malloc, realloc, free** thì có các hàm hook tương ứng là **malloc_hook, __realloc_hook và __free_hook** 
-- khi chạy vào **malloc, realloc, free,** nó sẽ kiểm tra xem các cái giá trị hook có phải là null không, nếu không phải thì chứ sẽ trỏ đến cái địa chỉ mà hook đang chứa
+- khi chạy vào **malloc, realloc, free,** nó sẽ kiểm tra xem các cái giá trị hook có phải là null không, nếu không phải thì chúng sẽ trỏ đến cái địa chỉ mà hook đang chứa
 - Các hàm liên quan tới heap như malloc, realloc và free đều có những cái hook riêng. **Khi ta kiểm soát được các hook đó đồng nghĩa với việc ta hoàn toàn có thể cho chương trình thực thi các lệnh tùy ý mà ta mong muốn.**
 
 ### source C:
