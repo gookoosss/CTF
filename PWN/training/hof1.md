@@ -88,7 +88,7 @@ vấn đề ở đây là username_check và password_check thì khởi tạo ra
 ![image](https://github.com/gookoosss/CTF/assets/128712571/688d1890-5a81-4dbc-8770-3f31661560d7)
 
 
-ta tính *offset từ username_input đến is_admin là 0x420*, sau đó ta sẽ **ghi đè cho is_admin bằng p64(0x1)**
+ta tính **offset từ username_input đến is_admin là 0x420**, sau đó ta sẽ **ghi đè cho is_admin bằng p64(0x1)**
 
 còn password_input thì ta nhập đại thôi
 
