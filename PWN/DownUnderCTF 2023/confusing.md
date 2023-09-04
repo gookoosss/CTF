@@ -63,6 +63,8 @@ p16(0x3419) + b'\xff\xff\xff\xff'
 
 có ý tưởng là vậy nhưng mà mình làm mãi mà ko thể nào chèn được đúng ý mình, nên mình đành tham khảo writeup của BTC:
 
+https://github.com/DownUnderCTF/Challenges_2023_Public/tree/main/beginner/confusing
+
 ```python
 p.sendlineafter(b'Give me d: ', str(struct.unpack('d', p16(0x3419) + b'\xff\xff\xff\xff' + b'\xff\xfe')[0]).encode())
 ```
