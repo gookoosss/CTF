@@ -6,7 +6,7 @@
 
 ```(lời khuyên là các bạn nên học kĩ thuật Use After Free trước khi làm chall này, mình có để link tham khảo ở dưới)```
 
-**Use After Free:** https://github.com/gookoosss/CTF/blob/main/PWN/DREAMHACK/Use%20After%20Free.md
+**Use After Free:** https://github.com/gookoosss/CTF/blob/main/PWN/training/heap/Use%20After%20Free.md
 
 ## Double Free Bug
 
