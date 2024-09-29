@@ -1,202 +1,152 @@
-﻿#pragma comment(lib, "bcrypt")
+#include <windows.h>
+#include <gdiplus.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 
-// C API headers
-#include <Windows.h> // bcrypt.h has a dependency on this header
-#include <bcrypt.h> // crypto API
+// Link to GDI+ library
+#pragma comment (lib,"Gdiplus.lib")
 
-// C++ API headers
-#include <iostream> // std::cout
-#include <exception> // std::exception
-#include <cstring> // memcpy
-#include <ctype.h> // isprint
+struct ScreenShot {
+    BYTE* data;
+    size_t size;
+};
 
-// macros from ntstatus.h
-#define STATUS_NOT_FOUND ((NTSTATUS)0xC0000225L)
-#define STATUS_BUFFER_TOO_SMALL ((NTSTATUS)0xC0000023L)
-#define STATUS_SUCCESS ((NTSTATUS)0x00000000L)
-
-void ErrorHandler(NTSTATUS status)
-{
-    switch (status)
-    {
-    case STATUS_NOT_FOUND:
-        throw std::exception("No provider was found for the specified algorithm ID.");
-    case STATUS_NO_MEMORY:
-        throw std::exception("A memory allocation failure occurred.");
-    case STATUS_INVALID_PARAMETER:
-        throw std::exception("One or more parameters are not valid.");
-    case STATUS_BUFFER_TOO_SMALL:
-        throw std::exception("The size of the key object specified by the cbKeyObject parameter is not large enough to hold the key object.");
-    case STATUS_INVALID_HANDLE:
-        throw std::exception("The algorithm handle in the hAlgorithm parameter is not valid.");
-    case STATUS_SUCCESS: // success
-        // no-op
-        break;
-    default:
-        throw std::exception("Unknown failure.");
-    }
+// Initialize GDI+
+void InitializeGDIPlus() {
+    Gdiplus::GdiplusStartupInput gdiPlusStartupInput;
+    ULONG_PTR gdiplusToken;
+    Gdiplus::GdiplusStartup(&gdiplusToken, &gdiPlusStartupInput, nullptr);
 }
 
-void PrintHexChunk(const BYTE* buffer, size_t size)
-{
-    std::cout << " | ";
-    for (size_t j = 0; j < size; ++j)
-    {
-        if (isprint(buffer[j]))
-        {
-            std::cout << buffer[j];
-        }
-        else
-        {
-            std::cout << ".";
-        }
+// Function to take a screenshot and return bytes
+ScreenShot Screenshot(int width, int height, std::string windowTitle, const std::string& format) {
+    // Initialize GDI+
+
+    InitializeGDIPlus();
+
+    HWND hwnd = FindWindowA(nullptr, windowTitle.c_str());
+
+    HDC hdcWindow = GetDC(hwnd);
+    HDC hdcMemDC = CreateCompatibleDC(hdcWindow);
+
+    if (width == 0) {
+        width = GetDeviceCaps(hdcWindow, HORZRES);
     }
-    std::cout << std::endl;
+
+    if (height == 0) {
+        height = GetDeviceCaps(hdcWindow, VERTRES);
+    }
+
+    // Create a compatible bitmap for the given width and height
+    HBITMAP hbmScreen = CreateCompatibleBitmap(hdcWindow, width, height);
+
+    // Select the bitmap into memory device context
+    SelectObject(hdcMemDC, hbmScreen);
+
+    // Bit block transfer into our compatible memory DC
+    BitBlt(hdcMemDC, 0, 0, width, height, hdcWindow, 0, 0, SRCCOPY);
+
+    // Initialize GDI+
+    Gdiplus::Bitmap bitmap(hbmScreen, nullptr);
+
+    // Save screenshot to memory (use PNG format for compression)
+    IStream* stream = nullptr;
+    CreateStreamOnHGlobal(nullptr, TRUE, &stream);
+    CLSID clsid;
+    if (format == "png") {
+        CLSIDFromString(L"{557CF406-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // PNG CLSID
+    }
+    else if (format == "bmp") {
+        CLSIDFromString(L"{557CF401-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // BMP CLSID
+    }
+    else if (format == "jpeg" || format == "jpg") {
+        CLSIDFromString(L"{557CF401-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // JPEG CLSID
+    }
+    else if (format == "gif") {
+        CLSIDFromString(L"{557CF402-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // GIF CLSID
+    }
+    else if (format == "tiff" || format == "tif") {
+        CLSIDFromString(L"{557CF405-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // TIFF CLSID
+    }
+    else if (format == "exif") {
+        CLSIDFromString(L"{557CF404-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // EXIF CLSID
+    }
+    else if (format == "wmf") {
+        CLSIDFromString(L"{557CF407-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // WMF CLSID
+    }
+    else if (format == "emf") {
+        CLSIDFromString(L"{557CF408-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // EMF CLSID
+    }
+    else {
+        // Default to PNG if unknown format
+        CLSIDFromString(L"{557CF406-1A04-11D3-9A73-0000F81EF32E}", &clsid);  // PNG CLSID
+        
+    }
+
+    // Save the bitmap to the stream
+    bitmap.Save(stream, &clsid, nullptr);
+
+    // Get the size of the screenshot
+    STATSTG statstg;
+    stream->Stat(&statstg, STATFLAG_DEFAULT);
+    size_t size = statstg.cbSize.LowPart;
+
+    // Allocate raw memory buffer for the screenshot
+    BYTE* data = new BYTE[size];
+
+    // Read the screenshot data into the byte array
+    LARGE_INTEGER liZero = {};
+    stream->Seek(liZero, STREAM_SEEK_SET, nullptr);
+    stream->Read(data, size, nullptr);
+
+    // Clean up
+    DeleteObject(hbmScreen);
+    DeleteDC(hdcMemDC);
+    ReleaseDC(hwnd, hdcWindow);
+    stream->Release();
+
+    ScreenShot screenshot;
+    screenshot.data = data;
+    screenshot.size = size;
+
+    return screenshot; // Return raw pointer to the byte array
 }
 
-void HexDump(const BYTE* buffer, size_t size)
-{
-    static const CHAR hexChars[] = "0123456789ABCDEF";
-    size_t j = 0;
-
-    for (size_t i = 0; i < size; ++i)
-    {
-        if (i != 0 && i % 16 == 0)
-        {
-            PrintHexChunk(buffer + j, 16);
-            j = i;
-        }
-
-        std::cout << hexChars[(buffer[i] >> 0x04)] << hexChars[(buffer[i] & 0x0F)] << " ";
+// Function to save the screenshot bytes to a .png file
+void SaveToFile(const std::string& filename, ScreenShot screenshot, ULONG size) {
+    std::ofstream file(filename, std::ios::out | std::ios::binary);
+    if (!file) {
+        std::cerr << "Error: Could not create file " << filename << std::endl;
+        return;
     }
-
-    // print the remaining bytes
-    std::cout << " | ";
-    while (j < size)
-    {
-        if (isprint(buffer[j]))
-        {
-            std::cout << buffer[j];
-        }
-        else
-        {
-            std::cout << ".";
-        }
-        ++j;
-    }
-    std::cout << std::endl << std::endl;
+    file.write(reinterpret_cast<const char*>(screenshot.data), size);
+    file.close();
+    std::cout << "Screenshot saved to " << filename << std::endl;
 }
 
-const BYTE AES256KEYSIZE = 32;
-const WCHAR messageToEncrypt[] = L"It is a sunny day today 🌞 but tomorrow it is going to rain 🌧!";
-const WCHAR initializationVector[] = L"my initialization vector"; // TODO: Replace with your IV
-
-int main()
-{
-    BCRYPT_ALG_HANDLE hBcryptAlg = nullptr;
-    BCRYPT_KEY_HANDLE hBcryptKey = nullptr;
-    BYTE rgAESKey[AES256KEYSIZE] = {}; // TODO: Replace with a random key
-    int retVal = 0;
-
-    // Calculate the size of the plaintext
-    size_t plainTextSize = sizeof(messageToEncrypt);
-    BYTE* vPlainText = new BYTE[plainTextSize];
-    memcpy(vPlainText, messageToEncrypt, plainTextSize);
-
-    // Calculate the size of the initialization vector
-    size_t ivSize = sizeof(initializationVector);
-    BYTE* vInitializationVector = new BYTE[ivSize];
-    memcpy(vInitializationVector, initializationVector, ivSize);
-
-    // Allocate space for ciphertext
-    ULONG cbCipherText = 0;
-    BYTE* vCipherText = nullptr;
-
-    try
-    {
-        ErrorHandler(BCryptOpenAlgorithmProvider(&hBcryptAlg, BCRYPT_AES_ALGORITHM, nullptr, 0));
-        ErrorHandler(BCryptGenerateSymmetricKey(hBcryptAlg, &hBcryptKey, nullptr, 0, rgAESKey, AES256KEYSIZE, 0));
-
-        std::cout << "Plain text:\n";
-        HexDump(vPlainText, plainTextSize);
-
-        // Calculate the size of the cipher text
-        ErrorHandler(
-            BCryptEncrypt(
-                hBcryptKey,
-                vPlainText,
-                plainTextSize,
-                nullptr,
-                vInitializationVector,
-                ivSize,
-                nullptr,
-                0,
-                &cbCipherText,
-                0)); // No padding for CFB mode
-
-        // Allocate ciphertext buffer
-        vCipherText = new BYTE[cbCipherText];
-        ErrorHandler(
-            BCryptEncrypt(
-                hBcryptKey,
-                vPlainText,
-                plainTextSize,
-                nullptr,
-                vInitializationVector,
-                ivSize,
-                vCipherText,
-                cbCipherText,
-                &cbCipherText,
-                0)); // No padding for CFB mode
-
-        std::cout << "After encryption:\n";
-        HexDump(vCipherText, cbCipherText);
-
-        // Clear the plaintext
-        memset(vPlainText, 0, plainTextSize);
-
-        ULONG cbPlainText = 0;
-
-        // Reset the initialization vector to the initial value
-        memcpy(vInitializationVector, initializationVector, ivSize);
-
-        ErrorHandler(
-            BCryptDecrypt(
-                hBcryptKey,
-                vCipherText,
-                cbCipherText,
-                nullptr,
-                vInitializationVector,
-                ivSize,
-                vPlainText,
-                plainTextSize,
-                &cbPlainText,
-                0)); // No padding for CFB mode
-
-        std::cout << "After decryption:\n";
-        HexDump(vPlainText, cbPlainText);
+HWND StringToHWND(const std::string& input) {
+    std::istringstream ss(input);
+    long long handle;
+    if (ss >> std::hex >> handle) {
+        return reinterpret_cast<HWND>(handle);
     }
-    catch (const std::exception& e)
-    {
-        std::cout << e.what() << std::endl;
-        retVal = -1;
-        goto CLEANUP;
-    }
+    return nullptr; // Invalid input
+}
 
-CLEANUP:
-    if (hBcryptAlg)
-    {
-        BCryptCloseAlgorithmProvider(hBcryptAlg, 0);
-    }
+int main() {
+    std::string windowTitle;
+    std::cout << "Enter the window title: ";
+    std::getline(std::cin, windowTitle);
 
-    if (hBcryptKey)
-    {
-        BCryptDestroyKey(hBcryptKey);
-    }
+    ScreenShot screenshot;
 
-    delete[] vPlainText;
-    delete[] vInitializationVector;
-    delete[] vCipherText;
+    screenshot = Screenshot(0, 0, windowTitle, "png");
 
-    return retVal;
+    std::cout << screenshot.size << std::endl;
+
+    SaveToFile("screenshot.png", screenshot, screenshot.size);
+
+    return 0;
 }
