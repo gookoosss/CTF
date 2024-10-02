@@ -1,4 +1,4 @@
-```c
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <png.h>
@@ -61,21 +61,64 @@ void SaveToPNG(const std::string& filename, unsigned char* data, int width, int 
 }
 
 // Function to capture the screen and return the image data
-unsigned char* CaptureScreen(int& width, int& height) {
+unsigned char* CaptureScreen(std::string windowTitle, int& width, int& height) {
     Display* display = XOpenDisplay(nullptr);
     if (!display) {
         std::cerr << "Error: Unable to open display" << std::endl;
         return nullptr;
     }
 
+    // Window root = DefaultRootWindow(display);
+    // XWindowAttributes rootAttributes;
+    // XGetWindowAttributes(display, root, &rootAttributes);
+
+    // width = rootAttributes.width;
+    // height = rootAttributes.height;
+
+    // XImage* image = XGetImage(display, root, 0, 0, width, height, AllPlanes, ZPixmap);
+
+    
     Window root = DefaultRootWindow(display);
-    XWindowAttributes rootAttributes;
-    XGetWindowAttributes(display, root, &rootAttributes);
+    Window targetWindow = 0;
+    XTextProperty windowName;
+    XGetWMName(display, root, &windowName);
 
-    width = rootAttributes.width;
-    height = rootAttributes.height;
+    // Check all windows to find the one matching the title
+    unsigned int numChildren;
+    Window* children = nullptr;
+    Window parent;
+    XQueryTree(display, root, &root, &parent, &children, &numChildren);
+    for (unsigned int i = 0; i < numChildren; ++i) {
+        char* name = nullptr;
+        XFetchName(display, children[i], &name);
+        if (name && windowTitle == name) {
+            targetWindow = children[i];
+            XFree(name);
+            break;
+        }
+        XFree(name);
+    }
 
-    XImage* image = XGetImage(display, root, 0, 0, width, height, AllPlanes, ZPixmap);
+    if (targetWindow == 0) {
+        std::cerr << "Window with title '" << windowTitle << "' not found." << std::endl;
+        return {nullptr, 0};
+    }
+
+    XWindowAttributes windowAttributes;
+    XGetWindowAttributes(display, targetWindow, &windowAttributes);
+
+    // Get the window width and height if not provided
+    if (width == 0) {
+        width = windowAttributes.width;
+    }
+    if (height == 0) {
+        height = windowAttributes.height;
+    }
+
+    // Capture the screenshot
+    XImage* image = XGetImage(display, targetWindow, 0, 0, width, height, AllPlanes, ZPixmap);
+
+
     if (!image) {
         std::cerr << "Error: Unable to get image" << std::endl;
         XCloseDisplay(display);
@@ -99,8 +142,12 @@ unsigned char* CaptureScreen(int& width, int& height) {
 }
 
 int main() {
+    std::string windowTitle;
+    std::cout << "Enter the window title: ";
+    std::getline(std::cin, windowTitle);
+
     int width, height;
-    unsigned char* data = CaptureScreen(width, height);
+    unsigned char* data = CaptureScreen(windowTitle, width, height);
     if (!data) {
         return 1;
     }
@@ -113,4 +160,3 @@ int main() {
     return 0;
 }
 
-```
