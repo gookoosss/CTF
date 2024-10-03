@@ -1,85 +1,127 @@
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <cairo/cairo.h>
-#include <cairo/cairo-xlib.h>
-#include <iostream>
-#include <fstream>
-#include <string>
+#include <png.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-// Structure to hold screenshot data
-struct ScreenShot {
-    unsigned char* data;
-    int width, height;
-};
+void save_image_as_png(XImage *image, const char *filename) {
+    int width = image->width;
+    int height = image->height;
 
-// Function to capture a screenshot on Linux using X11 and Cairo
-ScreenShot Screenshot(int width, int height, const std::string& windowTitle) {
-    // Open a connection to the X server
-    Display* display = XOpenDisplay(nullptr);
-    if (!display) {
-        std::cerr << "Error: Cannot open display." << std::endl;
-        exit(1);
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        fprintf(stderr, "Failed to open file for writing: %s\n", filename);
+        return;
     }
 
-    // Get the root window (entire screen)
-    Window root = DefaultRootWindow(display);
+    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png) {
+        fprintf(stderr, "Failed to create PNG write struct\n");
+        fclose(fp);
+        return;
+    }
 
-    // Get screen dimensions if width and height are not provided
+    png_infop info = png_create_info_struct(png);
+    if (!info) {
+        fprintf(stderr, "Failed to create PNG info struct\n");
+        png_destroy_write_struct(&png, NULL);
+        fclose(fp);
+        return;
+    }
+
+    if (setjmp(png_jmpbuf(png))) {
+        fprintf(stderr, "Error during PNG creation\n");
+        png_destroy_write_struct(&png, &info);
+        fclose(fp);
+        return;
+    }
+
+    png_init_io(png, fp);
+
+    // Output PNG header
+    png_set_IHDR(
+        png, info, width, height,
+        8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
+    );
+    png_write_info(png, info);
+
+    // Allocate row pointers
+    png_bytep row = (png_bytep)malloc(3 * width * sizeof(png_byte));
+    if (!row) {
+        fprintf(stderr, "Failed to allocate memory for row\n");
+        png_destroy_write_struct(&png, &info);
+        fclose(fp);
+        return;
+    }
+
+    // Write image data
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            unsigned long pixel = XGetPixel(image, x, y);
+            unsigned char blue = pixel & 0xff;
+            unsigned char green = (pixel >> 8) & 0xff;
+            unsigned char red = (pixel >> 16) & 0xff;
+
+            row[x * 3] = red;
+            row[x * 3 + 1] = green;
+            row[x * 3 + 2] = blue;
+        }
+        png_write_row(png, row);
+    }
+
+    // End write
+    png_write_end(png, NULL);
+
+    // Free resources
+    free(row);
+    png_destroy_write_struct(&png, &info);
+    fclose(fp);
+
+    printf("Saved image to: %s\n", filename);
+}
+
+void capture_window(Display *display, Window win, const char *filename) {
+    XWindowAttributes attr;
+
+    // Get window attributes, check if it’s viewable (mapped)
+    if (XGetWindowAttributes(display, win, &attr) == 0 || attr.map_state != IsViewable) {
+        // Skip windows that aren't viewable (e.g., minimized or hidden)
+        return;
+    }
+
+    int width = attr.width;
+    int height = attr.height;
+
+    // Only capture windows with a valid drawable area
     if (width == 0 || height == 0) {
-        Screen* screen = DefaultScreenOfDisplay(display);
-        width = screen->width;
-        height = screen->height;
+        return;
     }
 
-    // Capture image using X11
-    XImage* image = XGetImage(display, root, 0, 0, width, height, AllPlanes, ZPixmap);
+    // Attempt to capture the window image
+    XImage *image = XGetImage(display, win, 0, 0, width, height, AllPlanes, ZPixmap);
+    if (!image) {
+        fprintf(stderr, "Failed to capture window content for window: 0x%lx\n", win);
+        return;
+    }
 
-    // Create a Cairo surface from the X11 image
-    cairo_surface_t* surface = cairo_image_surface_create_for_data(
-        reinterpret_cast<unsigned char*>(image->data), 
-        CAIRO_FORMAT_RGB24, 
-        width, 
-        height, 
-        image->bytes_per_line);
+    // Save the captured image as a PNG
+    save_image_as_png(image, filename);
 
-    // Copy the screenshot data into our structure
-    ScreenShot screenshot;
-    screenshot.data = cairo_image_surface_get_data(surface);
-    screenshot.width = width;
-    screenshot.height = height;
-
-    // Free the X11 image
     XDestroyImage(image);
+}
 
-    // Close the connection to the X server
+int main(){
+
+    Display *display = XOpenDisplay(NULL);
+    if (!display) {
+        fprintf(stderr, "Unable to open X display\n");
+        return 1;
+    }
+
+    capture_window(display, 0x600006, "window.png");
+
     XCloseDisplay(display);
-
-    return screenshot;
-}
-
-// Function to save the screenshot as a PNG file using Cairo
-void SaveToFile(const std::string& filename, ScreenShot screenshot) {
-    cairo_surface_t* surface = cairo_image_surface_create_for_data(
-        screenshot.data, CAIRO_FORMAT_RGB24, screenshot.width, screenshot.height, screenshot.width * 4);
-
-    // Save the surface to a PNG file
-    cairo_surface_write_to_png(surface, filename.c_str());
-
-    cairo_surface_destroy(surface);
-
-    std::cout << "Screenshot saved to " << filename << std::endl;
-}
-
-int main() {
-    std::string windowTitle;
-    std::cout << "Enter the window title (ignored on Linux): ";
-    std::getline(std::cin, windowTitle);
-
-    // Take screenshot
-    ScreenShot screenshot = Screenshot(0, 0, windowTitle);
-
-    // Save to file
-    SaveToFile("screenshot.png", screenshot);
-
     return 0;
 }
