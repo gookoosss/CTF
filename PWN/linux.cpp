@@ -1,162 +1,101 @@
-
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <png.h>
 #include <iostream>
-#include <string>
-#include <cstdlib>
+#include <iomanip> // Include this header for std::hex
 
-// Function to save the image in PNG format
-void SaveToPNG(const std::string& filename, unsigned char* data, int width, int height) {
-    FILE *fp = fopen(filename.c_str(), "wb");
-    if (!fp) {
-        std::cerr << "Error: Could not create file " << filename << std::endl;
-        return;
-    }
 
-    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-    if (!png) {
-        std::cerr << "Error: png_create_write_struct failed" << std::endl;
-        fclose(fp);
-        return;
-    }
+Window list_and_capture_windows(Display *display, Window root, std::string windowTitle) {
+    Window parent, *children;
+    unsigned int nchildren;
+    Window targetWindow;
+    char* name = nullptr;
 
-    png_infop info = png_create_info_struct(png);
-    if (!info) {
-        std::cerr << "Error: png_create_info_struct failed" << std::endl;
-        png_destroy_write_struct(&png, nullptr);
-        fclose(fp);
-        return;
-    }
+    // Query the tree of windows
+    if (XQueryTree(display, root, &root, &parent, &children, &nchildren)) {
+        for (unsigned int i = 0; i < nchildren; i++) {
+            // Only capture top-level windows (not dialog boxes, etc.)
+            if (children[i] != root) {
+                char* name = nullptr;
+                if (XFetchName(display, children[i], &name)) {
+                    // Print the window name and ID in hexadecimal format
+                    std::cout << "Window ID: 0x" << std::hex << children[i] << ", Name: " << (name ? name : "Unnamed") << std::endl;
+                    
+                } else {
+                    std::cout << "Window ID: 0x" << std::hex << children[i] << ", Name: Unnamed" << std::endl;
+                }
 
-    if (setjmp(png_jmpbuf(png))) {
-        std::cerr << "Error: PNG write error" << std::endl;
-        png_destroy_write_struct(&png, &info);
-        fclose(fp);
-        return;
-    }
+                if (name && windowTitle == name) {
+                    targetWindow = children[i];
+                    XFree(name);
+                    XFree(children);
+                    std::cout << "----------------------DONE----------------------\n";
 
-    png_init_io(png, fp);
+                    return targetWindow;
+                }
 
-    // Correct the argument order in png_set_IHDR
-    png_set_IHDR(png, info, width, height, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-                 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+                XFree(name);
 
-    png_write_info(png, info);
 
-    png_bytep row = new png_byte[3 * width];
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            row[x * 3 + 0] = data[(y * width + x) * 4 + 0]; // R
-            row[x * 3 + 1] = data[(y * width + x) * 4 + 1]; // G
-            row[x * 3 + 2] = data[(y * width + x) * 4 + 2]; // B
+                Window parent2, *children2;
+                unsigned int nchildren2;
+
+                std::cout << "----------------------Child----------------------\n";
+                if (XQueryTree(display, children[i], &children[i], &parent2, &children2, &nchildren2)) {
+                    for (unsigned int j = 0; j < nchildren2; j++) { // Changed loop variable to j
+                        // Only capture top-level windows (not dialog boxes, etc.)
+                        if (children2[j] != root) {
+                            
+                            if (XFetchName(display, children2[j], &name)) {
+                                // Print the window name and ID in hexadecimal format
+                                std::cout << "Window ID: 0x" << std::hex << children2[j] << ", Name: " << (name ? name : "Unnamed") << std::endl;
+                                
+                            } else {
+                                std::cout << "Window ID: 0x" << std::hex << children2[j] << ", Name: Unnamed" << std::endl;
+                            }
+                        }
+
+                        if (name && windowTitle == name) {
+                            targetWindow = children2[j];
+                            XFree(children);
+                            XFree(children2);
+                            XFree(name);
+                            std::cout << "----------------------DONE----------------------\n";
+                            return targetWindow;
+                        }
+
+                        XFree(name);
+
+                    }
+
+                    if (children2) {
+                        XFree(children2);
+                    }
+                }
+
+                std::cout << "----------------------END----------------------\n";
+            }
         }
-        png_write_row(png, row);
-    }
-
-    delete[] row;
-    png_write_end(png, nullptr);
-    png_destroy_write_struct(&png, &info);
-    fclose(fp);
-}
-
-// Function to capture the screen and return the image data
-unsigned char* CaptureScreen(std::string windowTitle, int& width, int& height) {
-    Display* display = XOpenDisplay(nullptr);
-    if (!display) {
-        std::cerr << "Error: Unable to open display" << std::endl;
-        return nullptr;
-    }
-
-    // Window root = DefaultRootWindow(display);
-    // XWindowAttributes rootAttributes;
-    // XGetWindowAttributes(display, root, &rootAttributes);
-
-    // width = rootAttributes.width;
-    // height = rootAttributes.height;
-
-    // XImage* image = XGetImage(display, root, 0, 0, width, height, AllPlanes, ZPixmap);
-
-    
-    Window root = DefaultRootWindow(display);
-    Window targetWindow = 0;
-    XTextProperty windowName;
-    XGetWMName(display, root, &windowName);
-
-    // Check all windows to find the one matching the title
-    unsigned int numChildren;
-    Window* children = nullptr;
-    Window parent;
-    XQueryTree(display, root, &root, &parent, &children, &numChildren);
-    for (unsigned int i = 0; i < numChildren; ++i) {
-        char* name = nullptr;
-        XFetchName(display, children[i], &name);
-        if (name && windowTitle == name) {
-            targetWindow = children[i];
-            XFree(name);
-            break;
+        if (children) {
+            XFree(children);
         }
-        XFree(name);
+    } else {
+        std::cerr << "Failed to query the window tree." << std::endl;
     }
-
-    if (targetWindow == 0) {
-        std::cerr << "Window with title '" << windowTitle << "' not found." << std::endl;
-        return {nullptr, 0};
-    }
-
-    XWindowAttributes windowAttributes;
-    XGetWindowAttributes(display, targetWindow, &windowAttributes);
-
-    // Get the window width and height if not provided
-    if (width == 0) {
-        width = windowAttributes.width;
-    }
-    if (height == 0) {
-        height = windowAttributes.height;
-    }
-
-    // Capture the screenshot
-    XImage* image = XGetImage(display, targetWindow, 0, 0, width, height, AllPlanes, ZPixmap);
-
-
-    if (!image) {
-        std::cerr << "Error: Unable to get image" << std::endl;
-        XCloseDisplay(display);
-        return nullptr;
-    }
-
-    unsigned char* data = new unsigned char[width * height * 4];
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            long pixel = XGetPixel(image, x, y);
-            data[(y * width + x) * 4 + 0] = (pixel & image->red_mask) >> 16; // R
-            data[(y * width + x) * 4 + 1] = (pixel & image->green_mask) >> 8; // G
-            data[(y * width + x) * 4 + 2] = (pixel & image->blue_mask); // B
-            data[(y * width + x) * 4 + 3] = 255; // Alpha
-        }
-    }
-
-    XDestroyImage(image);
-    XCloseDisplay(display);
-    return data;
-}
-
-int main() {
-    std::string windowTitle;
-    std::cout << "Enter the window title: ";
-    std::getline(std::cin, windowTitle);
-
-    int width, height;
-    unsigned char* data = CaptureScreen(windowTitle, width, height);
-    if (!data) {
-        return 1;
-    }
-
-    std::string filename = "screenshot.png";
-    SaveToPNG(filename, data, width, height);
-    std::cout << "Screenshot saved to " << filename << std::endl;
-
-    delete[] data;
     return 0;
 }
 
+
+int main() {
+    Display *display = XOpenDisplay(nullptr);
+    if (display == nullptr) {
+        std::cerr << "Unable to open X display." << std::endl;
+        return 1;
+    }
+
+    Window root = DefaultRootWindow(display);
+    Window targetWindow = list_and_capture_windows(display, root, "Mozilla Firefox");
+    std::cout << "Window ID: 0x" << std::hex << targetWindow << std::endl;
+
+    XCloseDisplay(display);
+    return 0;
+}
